@@ -1,0 +1,192 @@
+export type ReihMediaItem = {
+  image_url: string;
+};
+
+export {
+  WIDGET_DEV_API_BASE_URL,
+  WIDGET_DEV_APP_URL,
+} from './widgetEnv';
+
+export const WIDGET_SCRIPT_URL =
+  'https://reimaginehome-embed-widget-app-git-dev-styldod.vercel.app/widget.js';
+
+/** Replace with your real public key from ReimagineHome */
+export const WIDGET_PUBLIC_KEY = 'public_key';
+
+export const LISTING_MEDIA: ReihMediaItem[] = [];
+
+/** DOM id used by reimaginehome-widget for the session loader overlay */
+export const REIH_LOADER_ID = 'reih-host-loader';
+
+/** Remove a stuck loader overlay (widget destroy() does not always clear it). */
+export function clearReihLoader(): void {
+  document.getElementById(REIH_LOADER_ID)?.remove();
+}
+
+/** Minimal widget API used by both CDN and npm integrations. */
+export type ReihWidgetOpener = {
+  open: (overrides?: Record<string, unknown>) => Promise<void>;
+};
+
+/** Host-side open helper — opens with resolved media and latest widget options. */
+export async function openReihWithMedia(
+  widget: ReihWidgetOpener,
+  media: ReihMediaItem[],
+): Promise<void> {
+  clearReihLoader();
+  await widget.open({
+    media: media.map((item) => ({
+      ...item,
+      image_url: resolveMediaUrl(item.image_url),
+    })),
+    mode: 'simple',
+    branding: buildWidgetBranding(),
+    sidebar_position: 'right',
+    language: buildWidgetLanguage(),
+  });
+}
+
+/** Wait until the CDN-injected window.reihWidget API is ready. */
+export function waitForReihWidget(
+  timeoutMs = 30_000,
+): Promise<NonNullable<Window['reihWidget']>> {
+  const existing = window.reihWidget;
+  if (existing && typeof existing.open === 'function') {
+    return Promise.resolve(existing);
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[src*="widget.js"]',
+    );
+
+    let settled = false;
+    const finish = (widget: NonNullable<Window['reihWidget']>) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearInterval(poller);
+      script?.removeEventListener('load', tryResolve);
+      resolve(widget);
+    };
+
+    const tryResolve = () => {
+      const widget = window.reihWidget;
+      if (widget && typeof widget.open === 'function') {
+        finish(widget);
+      }
+    };
+
+    script?.addEventListener('load', tryResolve);
+    const poller = window.setInterval(tryResolve, 50);
+
+    const timer = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poller);
+      script?.removeEventListener('load', tryResolve);
+      reject(new Error('[reih] Widget script did not load in time'));
+    }, timeoutMs);
+
+    tryResolve();
+  });
+}
+
+/** Local /images/* paths need a full URL for the widget backend to fetch them */
+export function resolveMediaUrl(url: string): string {
+  if (url.startsWith('/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${url}`;
+  }
+  return url;
+}
+
+export function resolveListingMedia(
+  media: ReihMediaItem[] = LISTING_MEDIA,
+): ReihMediaItem[] {
+  return media.map((item) => ({
+    ...item,
+    image_url: resolveMediaUrl(item.image_url),
+  }));
+}
+
+export type ReihWidgetLanguage = {
+  code: string;
+  name: string;
+  nativeName: string;
+};
+
+export function buildWidgetLanguage(): ReihWidgetLanguage[] {
+  return [
+    { code: 'en-US', name: 'English (United States)', nativeName: 'English (US)' },
+    { code: 'en-GB', name: 'English (United Kingdom)', nativeName: 'English (UK)' },
+    { code: 'pl-PL', name: 'Polish', nativeName: 'Polski' },
+    { code: 'es-ES', name: 'Spanish', nativeName: 'Español' },
+  ];
+}
+
+export type ReihWidgetBranding = {
+  logo: string;
+  text_primary: string;
+  text_secondary: string;
+  primary_color: string;
+  heading: string;
+  sub_heading: string;
+  footer_text: string;
+};
+
+/** Branding block — must match the embed spec exactly (no extra keys). */
+export function buildWidgetBranding(): ReihWidgetBranding {
+  return {
+    logo: 'https://ecdn.styldod.com/assets/logo/6a2bca9bce2a355c2c13d058.svg',
+    text_primary: '#071121FF',
+    text_secondary: '#1B232E',
+    primary_color: '#3ED37A',
+    heading: 'Reimagine Your Space',
+    sub_heading: 'AI-powered room redesign',
+    footer_text: '',
+  };
+}
+
+/** CSS vars for host page accents only (widget gets exact branding via buildWidgetBranding). */
+export function getWidgetHostCssVars(): Record<string, string> {
+  const branding = buildWidgetBranding();
+  return {
+    '--reih-primary': branding.primary_color,
+    '--reih-text-primary': branding.text_primary.replace(/ff$/i, ''),
+    '--reih-text-secondary': branding.text_secondary,
+  };
+}
+
+const widgetCallbacks = {
+  onComplete: (detail: unknown) => {
+    console.log('[reih] onComplete:', detail);
+  },
+  onError: (err: unknown) => {
+    console.error('[reih] onError:', err);
+  },
+  onClose: () => {
+    console.log('[reih] onClose: widget closed');
+  },
+};
+
+/**
+ * CDN script-embed config for window.reihWidgetConfig.
+ * public_key comes from the <script data-public-key> attribute, not this object.
+ */
+export function buildScriptEmbedWidgetConfig() {
+  return {
+    media: resolveListingMedia(),
+    mode: 'simple' as const,
+    branding: buildWidgetBranding(),
+    sidebar_position: 'right' as const,
+    language: buildWidgetLanguage(),
+    ...widgetCallbacks,
+  };
+}
+
+export function buildWidgetConfig() {
+  return {
+    public_key: WIDGET_PUBLIC_KEY,
+    ...buildScriptEmbedWidgetConfig(),
+  };
+}
