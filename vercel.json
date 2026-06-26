@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!images/|reimaginehome-logo\\.png|favicon\\.svg|assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
