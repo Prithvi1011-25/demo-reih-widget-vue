@@ -7,26 +7,30 @@ import {
   buildScriptEmbedWidgetConfig,
   clearReihLoader,
   openReihWithMedia,
-  resolveListingMedia,
+  type ListingMediaItem,
+  LISTING_MEDIA,
   waitForReihWidget,
-  type ReihMediaItem,
 } from './widgetConfig';
 
 const WIDGET_SCRIPT_ID = 'reih-widget-script';
 
+const opening = ref(false);
+let script: HTMLScriptElement | null = null;
+
 function setScriptEmbedConfig(): void {
   window.reihWidgetConfig = buildScriptEmbedWidgetConfig();
 }
-
-const opening = ref(false);
-let script: HTMLScriptElement | null = null;
 
 function onScriptLoad(): void {
   setScriptEmbedConfig();
   console.log('[script-embed] Widget script loaded');
 }
 
-async function openWidget(media: ReihMediaItem[]): Promise<void> {
+function onScriptError(): void {
+  console.error('[script-embed] Widget script failed to load');
+}
+
+async function openWidget(media: ListingMediaItem[]): Promise<void> {
   if (opening.value) return;
 
   opening.value = true;
@@ -45,8 +49,11 @@ async function openWidget(media: ReihMediaItem[]): Promise<void> {
 }
 
 function handleOpenAll(): void {
-  console.log('[script-embed] Open button clicked');
-  void openWidget(resolveListingMedia());
+  void openWidget(LISTING_MEDIA);
+}
+
+function handleOpenMedia(media: ListingMediaItem[]): void {
+  void openWidget(media);
 }
 
 onMounted(() => {
@@ -62,12 +69,11 @@ onMounted(() => {
     script.async = true;
     script.setAttribute('data-public-key', WIDGET_PUBLIC_KEY);
     script.addEventListener('load', onScriptLoad);
-    script.onerror = () => {
-      console.error('[script-embed] Widget script failed to load');
-    };
+    script.addEventListener('error', onScriptError);
     document.body.appendChild(script);
   } else if (!window.reihWidget?.open) {
     script.addEventListener('load', onScriptLoad);
+    script.addEventListener('error', onScriptError);
   } else {
     console.log('[script-embed] Widget script already loaded');
   }
@@ -75,6 +81,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   script?.removeEventListener('load', onScriptLoad);
+  script?.removeEventListener('error', onScriptError);
   window.reihWidget?.destroy?.();
   clearReihLoader();
 });
@@ -82,8 +89,7 @@ onUnmounted(() => {
 
 <template>
   <ListingDemoPage
-    title="Widget Test Page"
-    description="This is a demo website created for testing the ReimagineHome widget. Use the button below to launch the widget and verify the embed integration."
     @open-all="handleOpenAll"
+    @open-media="handleOpenMedia"
   />
 </template>

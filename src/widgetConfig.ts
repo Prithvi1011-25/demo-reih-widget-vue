@@ -2,6 +2,10 @@ export type ReihMediaItem = {
   image_url: string;
 };
 
+export type ListingMediaItem = ReihMediaItem & {
+  hero?: boolean;
+};
+
 export {
   WIDGET_DEV_API_BASE_URL,
   WIDGET_DEV_APP_URL,
@@ -13,10 +17,51 @@ export const WIDGET_SCRIPT_URL =
 /** Replace with your real public key from ReimagineHome */
 export const WIDGET_PUBLIC_KEY = 'public_key';
 
-export const LISTING_MEDIA: ReihMediaItem[] = [];
+export const LISTING = {
+  title: 'Maple Court Residence',
+  facts: ['4 bed', '3 bath', '2,840 sq ft', 'Built 2021'],
+};
+
+export const LISTING_MEDIA: ListingMediaItem[] = [
+  { hero: true, image_url: '/images/property/5.png' },
+  { image_url: '/images/property/6.jpg' },
+  { image_url: '/images/property/7.png' },
+  { image_url: '/images/property/8.png' },
+  { image_url: '/images/property/9.png' },
+  { image_url: '/images/property/10.jpg' },
+  { image_url: '/images/property/12.jpg' },
+  { image_url: '/images/property/13.png' },
+  { image_url: '/images/property/14.png' },
+  { image_url: '/images/property/15.png' },
+  { image_url: '/images/property/16.png' },
+  { image_url: '/images/property/17.png' },
+  { image_url: '/images/property/18.png' },
+  { image_url: '/images/property/19.png' },
+  { image_url: '/images/property/20.png' },
+  { image_url: '/images/property/21.png' },
+  { image_url: '/images/property/22.png' },
+  { image_url: '/images/property/23.png' },
+  { image_url: '/images/property/24.png' },
+  { image_url: '/images/property/25.png' },
+];
+
+export const ARRANGE_LABEL = 'Arrange Interiors';
 
 /** DOM id used by reimaginehome-widget for the session loader overlay */
 export const REIH_LOADER_ID = 'reih-host-loader';
+
+export function classifyMedia(items: ListingMediaItem[] = LISTING_MEDIA) {
+  const hero = items.find((item) => item.hero) ?? items[0];
+  const nonHero = items.filter((item) => item !== hero);
+  return { hero, nonHero };
+}
+
+/** Widget only wants { image_url } — strip host-side flags like `hero`. */
+export function toWidgetMedia(items: ListingMediaItem[]): ReihMediaItem[] {
+  return items.map((item) => ({
+    image_url: resolveMediaUrl(item.image_url),
+  }));
+}
 
 /** Remove a stuck loader overlay (widget destroy() does not always clear it). */
 export function clearReihLoader(): void {
@@ -28,17 +73,48 @@ export type ReihWidgetOpener = {
   open: (overrides?: Record<string, unknown>) => Promise<void>;
 };
 
-/** Host-side open helper — opens with resolved media and latest widget options. */
+export function buildWidgetCallbacks() {
+  return {
+    onComplete: (detail: unknown) => {
+      console.log('[reih] onComplete:', detail);
+    },
+    onError: (err: unknown) => {
+      console.error('[reih] onError:', err);
+    },
+    onClose: () => {
+      console.log('[reih] onClose: widget closed');
+    },
+  };
+}
+
+/**
+ * CDN script-embed config for window.reihWidgetConfig.
+ * public_key comes from the <script data-public-key> attribute, not this object.
+ */
+export function buildScriptEmbedWidgetConfig() {
+  return {
+    media: resolveListingMedia(),
+    mode: 'simple' as const,
+    branding: buildWidgetBranding(),
+    sidebar_position: 'right' as const,
+    language: buildWidgetLanguage(),
+    ...buildWidgetCallbacks(),
+  };
+}
+
+export function buildWidgetConfig() {
+  return {
+    public_key: WIDGET_PUBLIC_KEY,
+    ...buildScriptEmbedWidgetConfig(),
+  };
+}
 export async function openReihWithMedia(
   widget: ReihWidgetOpener,
-  media: ReihMediaItem[],
+  media: ListingMediaItem[],
 ): Promise<void> {
   clearReihLoader();
   await widget.open({
-    media: media.map((item) => ({
-      ...item,
-      image_url: resolveMediaUrl(item.image_url),
-    })),
+    media: toWidgetMedia(media),
     mode: 'simple',
     branding: buildWidgetBranding(),
     sidebar_position: 'right',
@@ -101,12 +177,9 @@ export function resolveMediaUrl(url: string): string {
 }
 
 export function resolveListingMedia(
-  media: ReihMediaItem[] = LISTING_MEDIA,
+  media: ListingMediaItem[] = LISTING_MEDIA,
 ): ReihMediaItem[] {
-  return media.map((item) => ({
-    ...item,
-    image_url: resolveMediaUrl(item.image_url),
-  }));
+  return toWidgetMedia(media);
 }
 
 export type ReihWidgetLanguage = {
@@ -147,46 +220,3 @@ export function buildWidgetBranding(): ReihWidgetBranding {
   };
 }
 
-/** CSS vars for host page accents only (widget gets exact branding via buildWidgetBranding). */
-export function getWidgetHostCssVars(): Record<string, string> {
-  const branding = buildWidgetBranding();
-  return {
-    '--reih-primary': branding.primary_color,
-    '--reih-text-primary': branding.text_primary.replace(/ff$/i, ''),
-    '--reih-text-secondary': branding.text_secondary,
-  };
-}
-
-const widgetCallbacks = {
-  onComplete: (detail: unknown) => {
-    console.log('[reih] onComplete:', detail);
-  },
-  onError: (err: unknown) => {
-    console.error('[reih] onError:', err);
-  },
-  onClose: () => {
-    console.log('[reih] onClose: widget closed');
-  },
-};
-
-/**
- * CDN script-embed config for window.reihWidgetConfig.
- * public_key comes from the <script data-public-key> attribute, not this object.
- */
-export function buildScriptEmbedWidgetConfig() {
-  return {
-    media: resolveListingMedia(),
-    mode: 'simple' as const,
-    branding: buildWidgetBranding(),
-    sidebar_position: 'right' as const,
-    language: buildWidgetLanguage(),
-    ...widgetCallbacks,
-  };
-}
-
-export function buildWidgetConfig() {
-  return {
-    public_key: WIDGET_PUBLIC_KEY,
-    ...buildScriptEmbedWidgetConfig(),
-  };
-}
