@@ -10,3 +10,6 @@ export const WIDGET_PROD_APP_URL = 'https://widget.styldod.com';
 
 export const WIDGET_PROD_API_BASE_URL =
   'https://oetb78o6i5.execute-api.us-west-2.amazonaws.com/prod';
+
+/** Public host where listing images are deployed — used for widget API on localhost */
+export const PUBLIC_ASSET_ORIGIN = 'https://reih-vue-widget-test.vercel.app';

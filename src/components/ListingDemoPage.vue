@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import ArrangeIcon from './ArrangeIcon.vue';
+import DesignInteriorButton from './DesignInteriorButton.vue';
 import SiteHeader from './SiteHeader.vue';
-import {
-  ARRANGE_LABEL,
-  LISTING,
-  classifyMedia,
-  type ListingMediaItem,
-} from '../widgetConfig';
+import { LISTING, classifyMedia, type ListingMediaItem } from '../widgetConfig';
 import '../sandbox.css';
 
 const emit = defineEmits<{
-  openAll: [];
   openMedia: [media: ListingMediaItem[], label: string];
 }>();
 
@@ -25,7 +19,7 @@ const galleryCountLabel = computed(() => {
 
 <template>
   <div>
-    <SiteHeader @open-all="emit('openAll')" />
+    <SiteHeader />
 
     <main class="wrap">
       <section class="intro rise">
@@ -33,7 +27,7 @@ const galleryCountLabel = computed(() => {
         <h1>{{ LISTING.title }}</h1>
         <p>
           A live sandbox for the ReimagineHome widget inside a property listing.
-          Select <strong>Arrange Interiors</strong> on the featured photo or any
+          Select <strong>Design interior</strong> on the featured photo or any
           gallery image to launch the redesign experience exactly as a buyer would
           see it.
         </p>
@@ -47,8 +41,7 @@ const galleryCountLabel = computed(() => {
       >
         <img class="hero__img" alt="Featured listing photo" :src="hero.image_url" />
         <div class="hero__scrim"></div>
-        <div class="hero__content">
-          <span class="badge"><span class="dot"></span>Featured</span>
+        <div class="hero__content hero__content--bottom">
           <div class="hero__bottom">
             <div class="hero__meta">
               <h2 class="hero__title">{{ LISTING.title }}</h2>
@@ -59,14 +52,10 @@ const galleryCountLabel = computed(() => {
                 </template>
               </div>
             </div>
-            <button
-              type="button"
-              class="btn btn--primary btn--md"
+            <DesignInteriorButton
+              variant="hero"
               @click="emit('openMedia', [hero], 'Featured')"
-            >
-              <ArrangeIcon />
-              {{ ARRANGE_LABEL }}
-            </button>
+            />
           </div>
         </div>
       </section>
@@ -90,16 +79,12 @@ const galleryCountLabel = computed(() => {
           />
           <span class="card__index">{{ String(index + 1).padStart(2, '0') }}</span>
           <div class="card__overlay">
-            <button
-              type="button"
-              class="btn btn--primary btn--sm"
+            <DesignInteriorButton
+              variant="gallery"
               @click="
                 emit('openMedia', [item], `Photo ${String(index + 1).padStart(2, '0')}`)
               "
-            >
-              <ArrangeIcon />
-              {{ ARRANGE_LABEL }}
-            </button>
+            />
           </div>
         </article>
       </section>

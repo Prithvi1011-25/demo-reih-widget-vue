@@ -1,3 +1,9 @@
+import {
+  PUBLIC_ASSET_ORIGIN,
+  WIDGET_DEV_API_BASE_URL,
+  WIDGET_DEV_APP_URL,
+} from './widgetEnv';
+
 export type ReihMediaItem = {
   image_url: string;
 };
@@ -6,10 +12,7 @@ export type ListingMediaItem = ReihMediaItem & {
   hero?: boolean;
 };
 
-export {
-  WIDGET_DEV_API_BASE_URL,
-  WIDGET_DEV_APP_URL,
-} from './widgetEnv';
+export { PUBLIC_ASSET_ORIGIN, WIDGET_DEV_API_BASE_URL, WIDGET_DEV_APP_URL };
 
 export const WIDGET_SCRIPT_URL =
   'https://reimaginehome-embed-widget-app-git-dev-styldod.vercel.app/widget.js';
@@ -23,8 +26,8 @@ export const LISTING = {
 };
 
 export const LISTING_MEDIA: ListingMediaItem[] = [
-  { hero: true, image_url: '/images/property/5.png' },
-  { image_url: '/images/property/6.jpg' },
+  { hero: true, image_url: '/images/property/6.jpg' },
+  { image_url: '/images/property/5.png' },
   { image_url: '/images/property/7.png' },
   { image_url: '/images/property/8.png' },
   { image_url: '/images/property/9.png' },
@@ -45,7 +48,7 @@ export const LISTING_MEDIA: ListingMediaItem[] = [
   { image_url: '/images/property/25.png' },
 ];
 
-export const ARRANGE_LABEL = 'Arrange Interiors';
+export const DESIGN_INTERIOR_LABEL = 'Design interior';
 
 /** DOM id used by reimaginehome-widget for the session loader overlay */
 export const REIH_LOADER_ID = 'reih-host-loader';
@@ -168,12 +171,18 @@ export function waitForReihWidget(
   });
 }
 
-/** Local /images/* paths need a full URL for the widget backend to fetch them */
+/** Local /images/* paths need a public URL the widget backend can fetch. */
 export function resolveMediaUrl(url: string): string {
-  if (url.startsWith('/') && typeof window !== 'undefined') {
-    return `${window.location.origin}${url}`;
+  if (!url.startsWith('/') || typeof window === 'undefined') {
+    return url;
   }
-  return url;
+
+  const host = window.location.hostname;
+  const isLocal =
+    host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  const origin = isLocal ? PUBLIC_ASSET_ORIGIN : window.location.origin;
+
+  return `${origin}${url}`;
 }
 
 export function resolveListingMedia(

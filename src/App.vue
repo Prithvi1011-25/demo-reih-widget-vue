@@ -8,7 +8,6 @@ import {
   clearReihLoader,
   openReihWithMedia,
   type ListingMediaItem,
-  LISTING_MEDIA,
   waitForReihWidget,
 } from './widgetConfig';
 
@@ -48,10 +47,6 @@ async function openWidget(media: ListingMediaItem[]): Promise<void> {
   }
 }
 
-function handleOpenAll(): void {
-  void openWidget(LISTING_MEDIA);
-}
-
 function handleOpenMedia(media: ListingMediaItem[]): void {
   void openWidget(media);
 }
@@ -88,8 +83,5 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ListingDemoPage
-    @open-all="handleOpenAll"
-    @open-media="handleOpenMedia"
-  />
+  <ListingDemoPage @open-media="handleOpenMedia" />
 </template>
