@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import DesignInteriorButton from './DesignInteriorButton.vue';
 import SiteHeader from './SiteHeader.vue';
-import { LISTING, classifyMedia, type ListingMediaItem } from '../widgetConfig';
+import { LISTING, LISTING_MEDIA, classifyMedia, type ListingMediaItem } from '../widgetConfig';
 import '../sandbox.css';
 
 const emit = defineEmits<{
@@ -54,7 +54,7 @@ const galleryCountLabel = computed(() => {
             </div>
             <DesignInteriorButton
               variant="hero"
-              @click="emit('openMedia', [hero], 'Featured')"
+              @click="emit('openMedia', LISTING_MEDIA, 'All photos')"
             />
           </div>
         </div>
