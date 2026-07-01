@@ -14,8 +14,7 @@ export type { ListingMediaItem };
 
 export { PUBLIC_ASSET_ORIGIN, WIDGET_DEV_API_BASE_URL, WIDGET_DEV_APP_URL };
 
-export const WIDGET_SCRIPT_URL =
-  'https://reimaginehome-embed-widget-app-git-dev-styldod.vercel.app/widget.js';
+export const WIDGET_SCRIPT_URL = 'https://widget.styldod.com/widget.js';
 
 /** Replace with your real public key from ReimagineHome */
 export const WIDGET_PUBLIC_KEY = 'ppk_0wh4jZLGM2UL1P761KCsU2tr';
