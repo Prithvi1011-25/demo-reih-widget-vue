@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { DESIGN_INTERIOR_LABEL } from '../widgetConfig';
+
 defineProps<{
   variant?: 'hero' | 'gallery';
 }>();
@@ -20,6 +22,6 @@ defineProps<{
         fill="currentColor"
       />
     </svg>
-    Design interior
+    {{ DESIGN_INTERIOR_LABEL }}
   </button>
 </template>

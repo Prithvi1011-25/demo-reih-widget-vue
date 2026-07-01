@@ -2,17 +2,25 @@
 import { computed } from 'vue';
 import DesignInteriorButton from './DesignInteriorButton.vue';
 import SiteHeader from './SiteHeader.vue';
-import { LISTING, LISTING_MEDIA, classifyMedia, type ListingMediaItem } from '../widgetConfig';
+import { classifyMedia, type ListingMediaItem } from '../widgetConfig';
+import type { Listing } from '../listings';
 import '../sandbox.css';
+
+const props = defineProps<{
+  listing: Listing;
+  sessionId: string;
+}>();
 
 const emit = defineEmits<{
   openMedia: [media: ListingMediaItem[], label: string];
+  back: [];
 }>();
 
-const { hero, nonHero } = classifyMedia();
+const hero = computed(() => classifyMedia(props.listing.media).hero);
+const nonHero = computed(() => classifyMedia(props.listing.media).nonHero);
 
 const galleryCountLabel = computed(() => {
-  const count = nonHero.length;
+  const count = nonHero.value.length;
   return `${count} ${count === 1 ? 'photo' : 'photos'}`;
 });
 </script>
@@ -22,6 +30,14 @@ const galleryCountLabel = computed(() => {
     <SiteHeader />
 
     <main class="wrap">
+      <section class="intro rise">
+        <button type="button" class="back-link" @click="emit('back')">
+          ← All listings
+        </button>
+        <p class="eyebrow">Listing preview</p>
+        <h1>{{ listing.title }}</h1>
+      </section>
+
       <section
         v-if="hero"
         class="hero rise"
@@ -33,9 +49,9 @@ const galleryCountLabel = computed(() => {
         <div class="hero__content hero__content--bottom">
           <div class="hero__bottom">
             <div class="hero__meta">
-              <h2 class="hero__title">{{ LISTING.title }}</h2>
+              <h2 class="hero__title">{{ listing.title }}</h2>
               <div class="hero__facts">
-                <template v-for="(fact, index) in LISTING.facts" :key="fact">
+                <template v-for="(fact, index) in listing.facts" :key="fact">
                   <i v-if="index > 0"></i>
                   <span>{{ fact }}</span>
                 </template>
@@ -43,7 +59,7 @@ const galleryCountLabel = computed(() => {
             </div>
             <DesignInteriorButton
               variant="hero"
-              @click="emit('openMedia', LISTING_MEDIA, 'All photos')"
+              @click="emit('openMedia', listing.media, 'All photos')"
             />
           </div>
         </div>
@@ -80,6 +96,7 @@ const galleryCountLabel = computed(() => {
 
       <footer class="foot">
         <span>Sandbox environment — not a production listing.</span>
+        <span>Session ID <code>{{ sessionId }}</code></span>
       </footer>
     </main>
   </div>

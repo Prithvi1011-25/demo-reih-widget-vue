@@ -4,7 +4,7 @@
       <div class="brand">
         <img
           class="brand__logo"
-          src="/styldod-logo.png"
+          src="/styldod-logo.png?v=1"
           alt="Styldod"
           height="24"
         />

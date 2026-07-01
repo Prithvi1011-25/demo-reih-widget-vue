@@ -3,14 +3,14 @@ import {
   WIDGET_DEV_API_BASE_URL,
   WIDGET_DEV_APP_URL,
 } from './widgetEnv';
+import { getListingById, type ListingMediaItem } from './listings';
+import { getOrCreateSessionId } from './sessionId';
 
 export type ReihMediaItem = {
   image_url: string;
 };
 
-export type ListingMediaItem = ReihMediaItem & {
-  hero?: boolean;
-};
+export type { ListingMediaItem };
 
 export { PUBLIC_ASSET_ORIGIN, WIDGET_DEV_API_BASE_URL, WIDGET_DEV_APP_URL };
 
@@ -18,42 +18,17 @@ export const WIDGET_SCRIPT_URL =
   'https://reimaginehome-embed-widget-app-git-dev-styldod.vercel.app/widget.js';
 
 /** Replace with your real public key from ReimagineHome */
-export const WIDGET_PUBLIC_KEY = 'public_key';
+export const WIDGET_PUBLIC_KEY = 'ppk_0wh4jZLGM2UL1P761KCsU2tr';
 
-export const LISTING = {
-  title: 'Maple Court Residence',
-  facts: ['4 bed', '3 bath', '2,840 sq ft', 'Built 2021'],
-};
+//export const WIDGET_LOGO_URL =
+//  'https://ecdn.styldod.com/assets/logo/6a2bca9bce2a355c2c13d058.svg';
 
-export const LISTING_MEDIA: ListingMediaItem[] = [
-  { hero: true, image_url: '/images/property/6.jpg' },
-  { image_url: '/images/property/5.png' },
-  { image_url: '/images/property/7.png' },
-  { image_url: '/images/property/8.png' },
-  { image_url: '/images/property/9.png' },
-  { image_url: '/images/property/10.jpg' },
-  { image_url: '/images/property/12.jpg' },
-  { image_url: '/images/property/13.png' },
-  { image_url: '/images/property/14.png' },
-  { image_url: '/images/property/15.png' },
-  { image_url: '/images/property/16.png' },
-  { image_url: '/images/property/17.png' },
-  { image_url: '/images/property/18.png' },
-  { image_url: '/images/property/19.png' },
-  { image_url: '/images/property/20.png' },
-  { image_url: '/images/property/21.png' },
-  { image_url: '/images/property/22.png' },
-  { image_url: '/images/property/23.png' },
-  { image_url: '/images/property/24.png' },
-  { image_url: '/images/property/25.png' },
-];
-
-export const DESIGN_INTERIOR_LABEL = 'Design interior';
+export const DESIGN_INTERIOR_LABEL = 'Design';
 
 /** DOM id used by reimaginehome-widget for the session loader overlay */
 export const REIH_LOADER_ID = 'reih-host-loader';
 
-export function classifyMedia(items: ListingMediaItem[] = LISTING_MEDIA) {
+export function classifyMedia(items: ListingMediaItem[]) {
   const hero = items.find((item) => item.hero) ?? items[0];
   const nonHero = items.filter((item) => item !== hero);
   return { hero, nonHero };
@@ -76,62 +51,90 @@ export type ReihWidgetOpener = {
   open: (overrides?: Record<string, unknown>) => Promise<void>;
 };
 
-export function buildWidgetCallbacks() {
-  return {
-    onComplete: (detail: unknown) => {
-      console.log('[reih] onComplete:', detail);
-    },
-    onError: (err: unknown) => {
-      console.error('[reih] onError:', err);
-    },
-    onClose: () => {
-      console.log('[reih] onClose: widget closed');
-    },
-  };
-}
+/** CDN script-embed config for window.reihWidgetConfig. */
+export function buildScriptEmbedWidgetConfig(listingId: string) {
+  const listing = getListingById(listingId);
+  if (!listing) {
+    throw new Error(`[reih] Unknown listing id: ${listingId}`);
+  }
 
-/**
- * CDN script-embed config for window.reihWidgetConfig.
- * public_key comes from the <script data-public-key> attribute, not this object.
- */
-export function buildScriptEmbedWidgetConfig() {
   return {
-    media: resolveListingMedia(),
-    mode: 'simple' as const,
+    listing_id: listingId,
+    session_id: getOrCreateSessionId(),
+    media: toWidgetMedia(listing.media),
     branding: buildWidgetBranding(),
-    sidebar_position: 'right' as const,
-    language: buildWidgetLanguage(),
-    ...buildWidgetCallbacks(),
   };
 }
 
-export function buildWidgetConfig() {
-  return {
-    public_key: WIDGET_PUBLIC_KEY,
-    ...buildScriptEmbedWidgetConfig(),
-  };
+export function buildWidgetConfig(listingId: string) {
+  return buildScriptEmbedWidgetConfig(listingId);
 }
+
 export async function openReihWithMedia(
   widget: ReihWidgetOpener,
+  listingId: string,
   media: ListingMediaItem[],
 ): Promise<void> {
   clearReihLoader();
   await widget.open({
+    listing_id: listingId,
+    session_id: getOrCreateSessionId(),
     media: toWidgetMedia(media),
-    mode: 'simple',
     branding: buildWidgetBranding(),
-    sidebar_position: 'right',
-    language: buildWidgetLanguage(),
+  });
+}
+
+/** Inject the CDN widget script once (deferred until user opens Design). */
+export function loadWidgetScript(): Promise<void> {
+  if (typeof document === 'undefined') {
+    return Promise.resolve();
+  }
+
+  const existing = window.reihWidget;
+  if (existing && typeof existing.open === 'function') {
+    return Promise.resolve();
+  }
+
+  const scriptId = 'reih-widget-script';
+  let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+  if (script?.dataset.loaded === 'true') {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const onLoad = () => {
+      script?.setAttribute('data-loaded', 'true');
+      resolve();
+    };
+    const onError = () => reject(new Error('[reih] Widget script failed to load'));
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `${WIDGET_SCRIPT_URL}?v=${Date.now()}`;
+      script.async = true;
+      script.setAttribute('data-public-key', WIDGET_PUBLIC_KEY);
+      script.addEventListener('load', onLoad, { once: true });
+      script.addEventListener('error', onError, { once: true });
+      document.body.appendChild(script);
+      return;
+    }
+
+    script.addEventListener('load', onLoad, { once: true });
+    script.addEventListener('error', onError, { once: true });
   });
 }
 
 /** Wait until the CDN-injected window.reihWidget API is ready. */
-export function waitForReihWidget(
+export async function waitForReihWidget(
   timeoutMs = 30_000,
 ): Promise<NonNullable<Window['reihWidget']>> {
+  await loadWidgetScript();
+
   const existing = window.reihWidget;
   if (existing && typeof existing.open === 'function') {
-    return Promise.resolve(existing);
+    return existing;
   }
 
   return new Promise((resolve, reject) => {
@@ -185,47 +188,6 @@ export function resolveMediaUrl(url: string): string {
   return `${origin}${url}`;
 }
 
-export function resolveListingMedia(
-  media: ListingMediaItem[] = LISTING_MEDIA,
-): ReihMediaItem[] {
-  return toWidgetMedia(media);
+export function buildWidgetBranding() {
+  return {};
 }
-
-export type ReihWidgetLanguage = {
-  code: string;
-  name: string;
-  nativeName: string;
-};
-
-export function buildWidgetLanguage(): ReihWidgetLanguage[] {
-  return [
-    { code: 'en-US', name: 'English (United States)', nativeName: 'English (US)' },
-    { code: 'en-GB', name: 'English (United Kingdom)', nativeName: 'English (UK)' },
-    { code: 'pl-PL', name: 'Polish', nativeName: 'Polski' },
-    { code: 'es-ES', name: 'Spanish', nativeName: 'Español' },
-  ];
-}
-
-export type ReihWidgetBranding = {
-  logo: string;
-  text_primary: string;
-  text_secondary: string;
-  primary_color: string;
-  heading: string;
-  sub_heading: string;
-  footer_text: string;
-};
-
-/** Branding block — must match the embed spec exactly (no extra keys). */
-export function buildWidgetBranding(): ReihWidgetBranding {
-  return {
-    logo: 'https://ecdn.styldod.com/assets/logo/6a2bca9bce2a355c2c13d058.svg',
-    text_primary: '#071121FF',
-    text_secondary: '#1B232E',
-    primary_color: '#3ED37A',
-    heading: 'Reimagine Your Space',
-    sub_heading: 'AI-powered room redesign',
-    footer_text: '',
-  };
-}
-

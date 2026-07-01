@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import ListingDemoPage from './components/ListingDemoPage.vue';
+import MainPage from './components/MainPage.vue';
+import { getListingById, type Listing } from './listings';
+import { getOrCreateSessionId } from './sessionId';
 import {
-  WIDGET_PUBLIC_KEY,
-  WIDGET_SCRIPT_URL,
   buildScriptEmbedWidgetConfig,
   clearReihLoader,
   openReihWithMedia,
@@ -11,34 +12,45 @@ import {
   waitForReihWidget,
 } from './widgetConfig';
 
-const WIDGET_SCRIPT_ID = 'reih-widget-script';
-
 const opening = ref(false);
-let script: HTMLScriptElement | null = null;
+const activeListingId = ref<string | null>(null);
+const sessionId = getOrCreateSessionId();
 
-function setScriptEmbedConfig(): void {
-  window.reihWidgetConfig = buildScriptEmbedWidgetConfig();
+const activeListing = computed(() =>
+  activeListingId.value ? getListingById(activeListingId.value) : null,
+);
+
+function parseHash(): void {
+  const match = window.location.hash.match(/^#\/listing\/([^/?#]+)/);
+  activeListingId.value = match?.[1] ?? null;
 }
 
-function onScriptLoad(): void {
-  setScriptEmbedConfig();
-  console.log('[script-embed] Widget script loaded');
+function openListing(listing: Listing): void {
+  window.location.hash = `#/listing/${listing.id}`;
 }
 
-function onScriptError(): void {
-  console.error('[script-embed] Widget script failed to load');
+function goHome(): void {
+  activeListingId.value = null;
+  window.location.hash = '';
 }
 
-async function openWidget(media: ListingMediaItem[]): Promise<void> {
+function setScriptEmbedConfig(listingId: string): void {
+  window.reihWidgetConfig = buildScriptEmbedWidgetConfig(listingId);
+}
+
+async function openWidget(
+  listingId: string,
+  media: ListingMediaItem[],
+): Promise<void> {
   if (opening.value) return;
 
   opening.value = true;
   try {
-    setScriptEmbedConfig();
+    setScriptEmbedConfig(listingId);
     const widget = await waitForReihWidget();
     widget.destroy();
     clearReihLoader();
-    await openReihWithMedia(widget, media);
+    await openReihWithMedia(widget, listingId, media);
   } catch (error) {
     clearReihLoader();
     console.error('[script-embed] Widget open failed:', error);
@@ -48,40 +60,33 @@ async function openWidget(media: ListingMediaItem[]): Promise<void> {
 }
 
 function handleOpenMedia(media: ListingMediaItem[]): void {
-  void openWidget(media);
+  if (!activeListingId.value) return;
+  void openWidget(activeListingId.value, media);
 }
 
 onMounted(() => {
-  setScriptEmbedConfig();
-  console.log('[script-embed] Widget config created');
-
-  script = document.getElementById(WIDGET_SCRIPT_ID) as HTMLScriptElement | null;
-
-  if (!script) {
-    script = document.createElement('script');
-    script.id = WIDGET_SCRIPT_ID;
-    script.src = `${WIDGET_SCRIPT_URL}?v=${Date.now()}`;
-    script.async = true;
-    script.setAttribute('data-public-key', WIDGET_PUBLIC_KEY);
-    script.addEventListener('load', onScriptLoad);
-    script.addEventListener('error', onScriptError);
-    document.body.appendChild(script);
-  } else if (!window.reihWidget?.open) {
-    script.addEventListener('load', onScriptLoad);
-    script.addEventListener('error', onScriptError);
-  } else {
-    console.log('[script-embed] Widget script already loaded');
-  }
+  parseHash();
+  window.addEventListener('hashchange', parseHash);
 });
 
 onUnmounted(() => {
-  script?.removeEventListener('load', onScriptLoad);
-  script?.removeEventListener('error', onScriptError);
+  window.removeEventListener('hashchange', parseHash);
   window.reihWidget?.destroy?.();
   clearReihLoader();
 });
 </script>
 
 <template>
-  <ListingDemoPage @open-media="handleOpenMedia" />
+  <MainPage
+    v-if="!activeListing"
+    :session-id="sessionId"
+    @open-listing="openListing"
+  />
+  <ListingDemoPage
+    v-else
+    :listing="activeListing"
+    :session-id="sessionId"
+    @open-media="handleOpenMedia"
+    @back="goHome"
+  />
 </template>

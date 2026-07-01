@@ -1,42 +1,23 @@
-import type { ReihMediaItem, ReihWidgetLanguage } from './widgetConfig';
+import type { ReihMediaItem } from './widgetConfig';
 
 declare global {
   interface Window {
     reihWidgetConfig?: {
-      public_key?: string;
+      listing_id: string;
+      session_id: string;
       media: ReihMediaItem[];
-      mode: string;
-      user_id?: string;
-      sidebar_position?: 'left' | 'right';
       branding?: {
-        logo: string;
-        text_primary: string;
-        text_secondary: string;
-        primary_color: string;
-        heading: string;
-        sub_heading: string;
-        footer_text: string;
+        logo?: string;
       };
-      language?: ReihWidgetLanguage[];
-      onComplete?: (detail: unknown) => void;
-      onError?: (err: unknown) => void;
-      onClose?: () => void;
     };
     reihWidget?: {
       open: (options?: {
+        listing_id?: string;
+        session_id?: string;
         media?: ReihMediaItem[];
-        mode?: string;
         branding?: {
-          logo: string;
-          text_primary: string;
-          text_secondary: string;
-          primary_color: string;
-          heading: string;
-          sub_heading: string;
-          footer_text: string;
+          logo?: string;
         };
-        sidebar_position?: 'left' | 'right';
-        language?: ReihWidgetLanguage[];
       }) => Promise<void>;
       close: () => void;
       destroy: () => void;
